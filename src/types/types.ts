@@ -4,3 +4,14 @@ export interface ChartData {
   value: number
   color: string
 }
+
+export interface User {
+  id: string
+  name: string
+  chartData: ChartData[]
+}
+
+export interface UserState {
+  users: User[]
+  currentUserId: string | null
+}

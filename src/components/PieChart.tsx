@@ -1,7 +1,7 @@
 "use client"
 
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import { Pie } from 'react-chartjs-2'
+import { Doughnut } from 'react-chartjs-2'
 import { ChartData } from '@/types/types'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -29,15 +29,16 @@ const PieChart: React.FC<PieChartProps> = ({ data }) => {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    cutout: '25%', // Make it a doughnut chart with 25% cutout
     plugins: {
       legend: {
         display: true,
-        position: 'right' as const,
+        position: 'bottom' as const,
         labels: {
-          boxWidth: 15,
-          padding: 8,
+          boxWidth: 20,
+          padding: 15,
           font: {
-            size: 14
+            size: 18
           },
           generateLabels: (chart: any) => {
             const data = chart.data
@@ -55,6 +56,12 @@ const PieChart: React.FC<PieChartProps> = ({ data }) => {
         }
       },
       tooltip: {
+        titleFont: {
+          size: 16
+        },
+        bodyFont: {
+          size: 16
+        },
         callbacks: {
           label: (context: any) => {
             const value = context.raw
@@ -66,13 +73,14 @@ const PieChart: React.FC<PieChartProps> = ({ data }) => {
     },
     rotation: 0, // Start at 3 o'clock
     layout: {
-      padding: 5
-    }
+      padding: 20
+    },
+    radius: '100%' // Maximum chart radius
   }
 
   return (
-    <div className="h-[403px]">
-      <Pie data={chartData} options={chartOptions} />
+    <div className="h-[600px]">
+      <Doughnut data={chartData} options={chartOptions} />
     </div>
   )
 }

@@ -5,8 +5,8 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Pie Charter App',
-  description: 'Create and customize pie charts with a pencil drawing style',
+  title: 'Life Chart App',
+  description: 'Create and manage personalized life charts',
 }
 
 export default function RootLayout({
@@ -16,10 +16,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link href="https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap" rel="stylesheet" />
-      </head>
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.className} bg-gray-50 min-h-screen`}>
+        <header className="bg-white shadow-sm">
+          <div className="container mx-auto px-4 py-3">
+            <h1 className="text-xl font-bold text-blue-600">Life Chart App</h1>
+          </div>
+        </header>
+        {children}
+      </body>
     </html>
   )
 }

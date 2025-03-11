@@ -78,25 +78,21 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, usedColors }
           }}
         >
           <div className="grid grid-cols-5 gap-2">
-            {PRESET_COLORS.map(color => {
-              const isUsed = usedColors.includes(color)
+            {PRESET_COLORS.filter(color => !usedColors.includes(color) || color === value).map(color => {
               const isSelected = value === color
               return (
                 <button
                   key={color}
                   className={`
                     w-6 h-6 rounded-md transition-all duration-150 shadow-sm
-                    ${isUsed ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 hover:shadow-md'}
+                    hover:scale-110 hover:shadow-md
                     ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}
                   `}
                   style={{ backgroundColor: color }}
                   onClick={() => {
-                    if (!isUsed) {
-                      onChange(color)
-                      setIsOpen(false)
-                    }
+                    onChange(color)
+                    setIsOpen(false)
                   }}
-                  disabled={isUsed}
                   type="button"
                 />
               )
@@ -114,37 +110,82 @@ interface DataTableProps {
 }
 
 const DataTable: React.FC<DataTableProps> = ({ data, onDataUpdate }) => {
+  // Constants for row limits
+  const MIN_ROWS = 3;
+  const MAX_ROWS = 10;
+
   useEffect(() => {
     if (data.length === 0) {
-      const defaultData = Array.from({ length: 5 }, (_, i) => ({
+      // Default to 5 rows, but ensure it's at least MIN_ROWS
+      const rowCount = Math.max(5, MIN_ROWS);
+      
+      const defaultData = Array.from({ length: rowCount }, (_, i) => ({
         id: i + 1,
-        label: `Item ${i + 1}`,
+        label: `Category ${i + 1}`,
         value: 5,
-        color: PRESET_COLORS[i]
+        color: PRESET_COLORS[i % PRESET_COLORS.length]
       }))
       onDataUpdate(defaultData)
     }
   }, [])
 
   const handleDelete = (id: number) => {
+    // Only allow deletion if we have more than MIN_ROWS
+    if (data.length <= MIN_ROWS) {
+      alert(`You must have at least ${MIN_ROWS} categories.`);
+      return;
+    }
+    
+    // Allow deletion of rows without auto-replacement
     onDataUpdate(data.filter(item => item.id !== id))
   }
 
   const handleAdd = () => {
+    // Only allow adding if we have fewer than MAX_ROWS
+    if (data.length >= MAX_ROWS) {
+      alert(`You can have a maximum of ${MAX_ROWS} categories.`);
+      return;
+    }
+    
     const newId = Math.max(...data.map(item => item.id), 0) + 1
     const availableColor = PRESET_COLORS.find(color => 
       !data.map(item => item.color).includes(color)
     ) || PRESET_COLORS[0]
 
+    // Find the highest category number
+    let highestNumber = 0
+    data.forEach(item => {
+      const match = /Category (\d+)/.exec(item.label)
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10)
+        if (num > highestNumber) highestNumber = num
+      }
+    })
+
     onDataUpdate([
       ...data,
       {
         id: newId,
-        label: '',
+        label: `Category ${highestNumber + 1}`,
         value: 5,
         color: availableColor
       }
     ])
+  }
+
+  const handleStartOver = () => {
+    if (window.confirm('Are you sure you want to reset the data to default values?')) {
+      // Use 5 rows by default, but ensure it's within limits
+      const rowCount = Math.min(Math.max(5, MIN_ROWS), MAX_ROWS);
+      
+      const defaultData = Array.from({ length: rowCount }, (_, i) => ({
+        id: i + 1,
+        label: `Category ${i + 1}`,
+        value: 5,
+        color: PRESET_COLORS[i % PRESET_COLORS.length]
+      }))
+      onDataUpdate(defaultData)
+    }
   }
 
   const handleUpdate = (id: number, field: keyof ChartData, value: any) => {
@@ -183,7 +224,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDataUpdate }) => {
                                 item.label.toLowerCase().includes('manuchehr')
           return (
           <tr key={item.id}>
-            <td className="w-1/3">
+            <td className="w-[60%]">
               <input
                 type="text"
                 value={item.label}
@@ -191,50 +232,70 @@ const DataTable: React.FC<DataTableProps> = ({ data, onDataUpdate }) => {
                 className="border p-1 w-full"
               />
             </td>
-            <td className="w-1/4">
-              <input
-                type="number"
+            <td className="w-[15%]">
+              <select
                 value={item.value}
                 onChange={e => handleUpdate(item.id, 'value', e.target.value)}
-                min={hasSpecialName ? "10" : "1"}
-                max={hasSpecialName ? "13" : "10"}
-                step={hasSpecialName ? "1" : "1"}
-                list={hasSpecialName ? `values-${item.id}` : undefined}
                 className="border p-1 w-full"
-              />
-              {hasSpecialName && (
-                <datalist id={`values-${item.id}`}>
-                  <option value="10" />
-                  <option value="11" />
-                  <option value="12" />
-                  <option value="13" />
-                </datalist>
-              )}
+              >
+                {hasSpecialName ? (
+                  // Options 10-13 for special categories
+                  [10, 11, 12, 13].map(val => (
+                    <option key={val} value={val}>{val}</option>
+                  ))
+                ) : (
+                  // Options 1-10 for regular categories
+                  Array.from({ length: 10 }, (_, i) => i + 1).map(val => (
+                    <option key={val} value={val}>{val}</option>
+                  ))
+                )}
+              </select>
             </td>
-            <td className="w-1/4">
+            <td className="w-[15%]">
               <ColorPicker
                 value={item.color}
                 onChange={color => handleUpdate(item.id, 'color', color)}
                 usedColors={data.filter(d => d.id !== item.id).map(d => d.color)}
               />
             </td>
-            <td className="w-[100px]">
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="bg-red-500 text-white px-2 py-1 rounded w-full"
-              >
-                Delete
-              </button>
+            <td className="w-[10%] text-center">
+              {data.length > MIN_ROWS && (
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100"
+                  title="Delete"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
             </td>
           </tr>
         )})}
         <tr>
+          <td colSpan={4} className="pt-4">
+            {data.length < MAX_ROWS ? (
+              <button
+                onClick={handleAdd}
+                className="bg-blue-500 text-white px-2 py-1 rounded w-full mb-3"
+              >
+                Add Row
+              </button>
+            ) : (
+              <div className="text-gray-500 text-center mb-3 text-sm">
+                Maximum of {MAX_ROWS} categories reached
+              </div>
+            )}
+          </td>
+        </tr>
+        <tr>
           <td colSpan={4}>
             <button
-              onClick={handleAdd}
-              className="bg-blue-500 text-white px-2 py-1 rounded w-full"
+              onClick={handleStartOver}
+              className="bg-gray-500 text-white px-2 py-1 rounded w-full"
             >
-              Add Row
+              Start Over
             </button>
           </td>
         </tr>
