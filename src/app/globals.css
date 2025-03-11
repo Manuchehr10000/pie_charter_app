@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-color: #f9f9f9;
+  --text-color: #333;
+}
+
+body {
+  color: var(--text-color);
+  background: var(--background-color);
+  font-family: 'Indie Flower', cursive, system-ui, sans-serif;
+}
+
+.sketch-container {
+  position: relative;
+}
+
+.sketch-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.sketch-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.sketch-table th, .sketch-table td {
+  position: relative;
+  padding: 12px;
+}
+
+.sketch-input {
+  background-color: transparent;
+  border: none;
+  padding: 8px;
+  width: 100%;
+  position: relative;
+  z-index: 5;
+}
+
+.sketch-input:focus {
+  outline: none;
+}
+
+.sketch-button {
+  position: relative;
+  z-index: 5;
+  transition: all 0.2s;
+}
+
+.sketch-button:hover {
+  transform: scale(1.05);
+}
