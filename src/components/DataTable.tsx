@@ -1,175 +1,245 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ChartData } from '@/types/types'
-import rough from 'roughjs'
+
+const PRESET_COLORS = [
+  '#4E79A7', // Blue
+  '#F28E2B', // Orange
+  '#E15759', // Red
+  '#76B7B2', // Teal
+  '#59A14F', // Green
+  '#EDC948', // Yellow
+  '#B07AA1', // Purple
+  '#FF9DA7', // Pink
+  '#9C755F', // Brown
+  '#BAB0AC'  // Gray
+]
+
+interface ColorPickerProps {
+  value: string
+  onChange: (color: string) => void
+  usedColors: string[]
+}
+
+const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, usedColors }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleButtonClick = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX
+      })
+    }
+    setIsOpen(!isOpen)
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        ref={buttonRef}
+        className="w-full h-8 border rounded flex items-center gap-2 px-2 bg-white hover:bg-gray-50"
+        onClick={handleButtonClick}
+        type="button"
+      >
+        <div 
+          className="w-5 h-5 rounded-sm shadow-sm"
+          style={{ backgroundColor: value }}
+        />
+        <div className="ml-auto">
+          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+      
+      {isOpen && (
+        <div 
+          className="fixed bg-white border rounded-lg shadow-lg p-3 z-50"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`
+          }}
+        >
+          <div className="grid grid-cols-5 gap-2">
+            {PRESET_COLORS.map(color => {
+              const isUsed = usedColors.includes(color)
+              const isSelected = value === color
+              return (
+                <button
+                  key={color}
+                  className={`
+                    w-6 h-6 rounded-md transition-all duration-150 shadow-sm
+                    ${isUsed ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 hover:shadow-md'}
+                    ${isSelected ? 'ring-2 ring-offset-2 ring-blue-500' : ''}
+                  `}
+                  style={{ backgroundColor: color }}
+                  onClick={() => {
+                    if (!isUsed) {
+                      onChange(color)
+                      setIsOpen(false)
+                    }
+                  }}
+                  disabled={isUsed}
+                  type="button"
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface DataTableProps {
   data: ChartData[]
-  onUpdate: (data: ChartData[]) => void
+  onDataUpdate: (data: ChartData[]) => void
 }
 
-const DataTable: React.FC<DataTableProps> = ({ data, onUpdate }) => {
-  const [tableData, setTableData] = useState<ChartData[]>(data)
-  const tableRef = useRef<HTMLTableElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
+const DataTable: React.FC<DataTableProps> = ({ data, onDataUpdate }) => {
   useEffect(() => {
-    if (!tableRef.current || !canvasRef.current) return
-
-    const table = tableRef.current
-    const canvas = canvasRef.current
-    const rc = rough.canvas(canvas)
-
-    // Set canvas size to match table
-    const resizeCanvas = () => {
-      const rect = table.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = rect.height
-
-      // Draw the table borders with a sketch style
-      const cells = table.querySelectorAll('th, td')
-      cells.forEach(cell => {
-        const cellRect = cell.getBoundingClientRect()
-        const relativeX = cellRect.left - rect.left
-        const relativeY = cellRect.top - rect.top
-
-        rc.rectangle(
-          relativeX, 
-          relativeY, 
-          cellRect.width, 
-          cellRect.height, 
-          { 
-            stroke: '#333',
-            strokeWidth: 1,
-            roughness: 1.5,
-            fillStyle: 'solid',
-            fill: 'rgba(255, 255, 255, 0.3)'
-          }
-        )
-      })
+    if (data.length === 0) {
+      const defaultData = Array.from({ length: 5 }, (_, i) => ({
+        id: i + 1,
+        label: `Item ${i + 1}`,
+        value: 5,
+        color: PRESET_COLORS[i]
+      }))
+      onDataUpdate(defaultData)
     }
+  }, [])
 
-    // Initial draw and resize handler
-    setTimeout(resizeCanvas, 100) // Wait for layout to be completed
-    window.addEventListener('resize', resizeCanvas)
+  const handleDelete = (id: number) => {
+    onDataUpdate(data.filter(item => item.id !== id))
+  }
 
-    // Redraw when tableData changes
-    return () => {
-      window.removeEventListener('resize', resizeCanvas)
-    }
-  }, [tableData])
+  const handleAdd = () => {
+    const newId = Math.max(...data.map(item => item.id), 0) + 1
+    const availableColor = PRESET_COLORS.find(color => 
+      !data.map(item => item.color).includes(color)
+    ) || PRESET_COLORS[0]
 
-  const handleInputChange = (id: number, field: keyof ChartData, value: string | number) => {
-    const updatedData = tableData.map(item => {
+    onDataUpdate([
+      ...data,
+      {
+        id: newId,
+        label: '',
+        value: 5,
+        color: availableColor
+      }
+    ])
+  }
+
+  const handleUpdate = (id: number, field: keyof ChartData, value: any) => {
+    onDataUpdate(data.map(item => {
       if (item.id === id) {
         if (field === 'value') {
-          // Ensure value is a number and positive
-          const numValue = parseFloat(value as string)
-          return { ...item, [field]: isNaN(numValue) ? 0 : Math.max(0, numValue) }
+          const hasSpecialName = item.label.toLowerCase().includes('manu') || 
+                                item.label.toLowerCase().includes('manuchehr')
+          
+          if (hasSpecialName) {
+            // Convert to number and round to nearest integer
+            const numValue = Math.round(Number(value))
+            // Only allow 10, 11, 12, or 13
+            if ([10, 11, 12, 13].includes(numValue)) {
+              value = numValue
+            } else {
+              // Default to 10 if invalid value
+              value = 10
+            }
+          } else {
+            // Regular categories: 1-10 range
+            value = Math.max(1, Math.min(10, Number(value) || 1))
+          }
         }
         return { ...item, [field]: value }
       }
       return item
-    })
-    
-    setTableData(updatedData)
-    onUpdate(updatedData)
-  }
-
-  const addRow = () => {
-    const newId = Math.max(...tableData.map(item => item.id), 0) + 1
-    const randomColor = `#${Math.floor(Math.random()*16777215).toString(16)}`
-    
-    const newRow: ChartData = {
-      id: newId,
-      label: `Item ${newId}`,
-      value: 10,
-      color: randomColor
-    }
-    
-    const updatedData = [...tableData, newRow]
-    setTableData(updatedData)
-    onUpdate(updatedData)
-  }
-
-  const removeRow = (id: number) => {
-    if (tableData.length <= 1) return
-    
-    const updatedData = tableData.filter(item => item.id !== id)
-    setTableData(updatedData)
-    onUpdate(updatedData)
+    }))
   }
 
   return (
-    <div className="sketch-table-container relative">
-      <canvas 
-        ref={canvasRef} 
-        className="absolute top-0 left-0 w-full h-full pointer-events-none" 
-      />
-      <table ref={tableRef} className="sketch-table w-full relative z-10">
-        <thead>
-          <tr>
-            <th className="text-left">Label</th>
-            <th className="text-left">Color</th>
-            <th className="text-left">Value</th>
-            <th className="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableData.map(item => (
-            <tr key={item.id}>
-              <td>
-                <input
-                  type="text"
-                  className="sketch-input"
-                  value={item.label}
-                  onChange={(e) => handleInputChange(item.id, 'label', e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="color"
-                  className="sketch-input w-full h-8"
-                  value={item.color}
-                  onChange={(e) => handleInputChange(item.id, 'color', e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  className="sketch-input"
-                  value={item.value}
-                  min="0"
-                  onChange={(e) => handleInputChange(item.id, 'value', e.target.value)}
-                />
-              </td>
-              <td className="text-right">
-                <button 
-                  onClick={() => removeRow(item.id)}
-                  className="sketch-button p-1 text-red-500"
-                  disabled={tableData.length <= 1}
-                >
-                  ✕
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={4} className="text-right pt-4">
-              <button 
-                onClick={addRow} 
-                className="sketch-button bg-gray-100 px-4 py-2 rounded-lg"
+    <table className="w-full">
+      <tbody>
+        {data.map(item => {
+          const hasSpecialName = item.label.toLowerCase().includes('manu') || 
+                                item.label.toLowerCase().includes('manuchehr')
+          return (
+          <tr key={item.id}>
+            <td className="w-1/3">
+              <input
+                type="text"
+                value={item.label}
+                onChange={e => handleUpdate(item.id, 'label', e.target.value)}
+                className="border p-1 w-full"
+              />
+            </td>
+            <td className="w-1/4">
+              <input
+                type="number"
+                value={item.value}
+                onChange={e => handleUpdate(item.id, 'value', e.target.value)}
+                min={hasSpecialName ? "10" : "1"}
+                max={hasSpecialName ? "13" : "10"}
+                step={hasSpecialName ? "1" : "1"}
+                list={hasSpecialName ? `values-${item.id}` : undefined}
+                className="border p-1 w-full"
+              />
+              {hasSpecialName && (
+                <datalist id={`values-${item.id}`}>
+                  <option value="10" />
+                  <option value="11" />
+                  <option value="12" />
+                  <option value="13" />
+                </datalist>
+              )}
+            </td>
+            <td className="w-1/4">
+              <ColorPicker
+                value={item.color}
+                onChange={color => handleUpdate(item.id, 'color', color)}
+                usedColors={data.filter(d => d.id !== item.id).map(d => d.color)}
+              />
+            </td>
+            <td className="w-[100px]">
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="bg-red-500 text-white px-2 py-1 rounded w-full"
               >
-                + Add Item
+                Delete
               </button>
             </td>
           </tr>
-        </tfoot>
-      </table>
-    </div>
+        )})}
+        <tr>
+          <td colSpan={4}>
+            <button
+              onClick={handleAdd}
+              className="bg-blue-500 text-white px-2 py-1 rounded w-full"
+            >
+              Add Row
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   )
 }
 

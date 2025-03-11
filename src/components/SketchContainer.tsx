@@ -44,9 +44,9 @@ const SketchContainer: React.FC<SketchContainerProps> = ({ children }) => {
   }, [])
 
   return (
-    <div ref={containerRef} className="sketch-container relative p-6 rounded-lg">
+    <div ref={containerRef} className="sketch-container relative p-8 rounded-lg overflow-hidden">
       <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />
-      <div className="relative z-10">
+      <div className="relative z-10 overflow-hidden">
         {children}
       </div>
     </div>
